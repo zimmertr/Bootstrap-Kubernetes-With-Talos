@@ -1,0 +1,15 @@
+# Prevents recreation of the cluster when adding/removing nodes.
+- name: Determining if the cluster is already bootstrapped
+  stat:
+    path: "/var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/kubeconfig"
+  register: CLUSTER_BOOTSTRAP_STATUS
+
+- block:
+  - name: Creating a directory to store the boilerplate configurations
+    file:
+      path: "/var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}"
+      state: directory
+
+  - name: Generating boilerplate Talos configuration files
+    command: "talosctl gen config {{ K8S_CLUSTER_NAME }} https://{{ NET_IP_PREFIX }}.{{ K8S_CP_VIP_SUFFIX }}:6443 --output-dir /var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/ {{ TALOS_ADDITIONAL_GEN_CONFIG_OPTIONS }}"
+  when: not CLUSTER_BOOTSTRAP_STATUS.stat.exists

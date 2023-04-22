@@ -1,0 +1,16 @@
+- name: Cordoning the node to be destroyed
+  command: "kubectl cordon {{ TALOS_MACHINE_NAME }} --kubeconfig /var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/kubeconfig"
+  ignore_errors: true
+
+- name: Draining the node to be destroyed
+  command: "kubectl drain {{ TALOS_MACHINE_NAME }} --ignore-daemonsets --kubeconfig /var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/kubeconfig"
+  ignore_errors: true
+
+- name: Deleting the node
+  command: "kubectl delete node {{ TALOS_MACHINE_NAME }} --kubeconfig /var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/kubeconfig"
+  ignore_errors: true
+
+- name: Removing the node from Etcd
+  command: "talosctl etcd remove-member {{ TALOS_MACHINE_NAME }} --talosconfig /var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/talosconfig"
+  when: TALOS_MACHINE_TYPE == "controlplane"
+  ignore_errors: true

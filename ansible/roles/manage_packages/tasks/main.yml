@@ -1,0 +1,68 @@
+- name: Validating that kubectl is already installed
+  command: which kubectl
+  ignore_errors: true
+  register: KUBECTL_EXISTS_STATUS
+
+- name: Validating that Talosctl is already installed
+  command: which talosctl
+  ignore_errors: true
+  register: TALOS_EXISTS_STATUS
+
+- block:
+    - name: Installing the Kubectl dependencies
+      apt:
+        pkg:
+          - ca-certificates
+          - curl
+
+    - name: Adding the Google Cloud signing key
+      apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+
+    - name: Adding the Kubernetes package repository
+      become: true
+      apt_repository:
+        repo: deb http://apt.kubernetes.io/ kubernetes-xenial main
+        update_cache: true
+
+    - name: Installing Kubectl
+      apt:
+        pkg: kubectl
+  when: 
+    - ACTION == "bootstrap_cluster"
+    - KUBECTL_EXISTS_STATUS.rc != 0 or FORCE_REINSTALL_KUBECTL
+
+- block:
+    - name: Downloading Talosctl
+      get_url:
+        url: https://talos.dev/install
+        dest: /tmp/install_talosctl.sh
+      when: TALOS_EXISTS_STATUS != 0
+
+    - name: Installing Talosctl
+      command: sh /tmp/install_talosctl.sh
+      when: TALOS_EXISTS_STATUS != 0
+
+    - name: Deleting the temporary files
+      file:
+        path: /tmp/install_talosctl.sh
+        state: absent
+  when: 
+    - ACTION == "bootstrap_cluster"
+    - TALOS_EXISTS_STATUS.rc != 0 or FORCE_REINSTALL_TALOSCTL
+
+- name: Uninstalling Kubectl
+  file:
+    path: /usr/bin/kubectl
+    state: absent
+  when: 
+    - ACTION == "destroy_cluster"
+    - not PRESERVE_KUBECTL_BINARY
+
+- name: Uninstalling Talosctl
+  file:
+    path: /usr/local/bin/talosctl
+    state: absent
+  when: 
+    - ACTION == "destroy_cluster"
+    - not PRESERVE_TALOSCTL_BINARY

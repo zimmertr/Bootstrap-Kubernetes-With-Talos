@@ -1,0 +1,54 @@
+- block:
+  - name: Configuring the Talosctl endpoint
+    command: "talosctl config endpoint {{ NET_IP_PREFIX }}.{{ K8S_CP_IP_SUFFIX }} --talosconfig /var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/talosconfig"
+
+  - name: Configuring the Talosctl node
+    command: "talosctl config node {{ NET_IP_PREFIX }}.{{ K8S_CP_IP_SUFFIX }} --talosconfig /var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/talosconfig"
+
+  - name: Wait for the control plane nodes to be ready
+    pause:
+      seconds: 30
+
+  - name: Bootstrapping the Kubernetes cluster
+    command: "talosctl bootstrap --talosconfig /var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/talosconfig"
+
+  - name: Saving the Kubernetes context
+    command: "talosctl kubeconfig --talosconfig /var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/talosconfig /var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/kubeconfig"
+
+  - name: Fetching the Kubernetes config
+    fetch:
+      flat: true
+      src: "/var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/kubeconfig"
+      dest: "{{ K8S_FETCHED_CONFIG_DIRECTORY }}"
+    when: FETCH_KUBERNETES_CONFIG
+
+  - name: Fetching the Talos config
+    fetch:
+      flat: true
+      src: "/var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/talosconfig"
+      dest: "{{ K8S_FETCHED_CONFIG_DIRECTORY }}"
+    when: FETCH_TALOS_CONFIG
+  when: ACTION == "bootstrap_cluster"
+
+- block:
+  - name: Discover Talos config files
+    find:
+      paths: /var/lib/vz/snippets/
+      patterns: "talos-{{ K8S_CONFIG_SUFFIX }}-(controlplane|worker)*"
+      use_regex: true
+    register: DISCOVERED_TALOS_CONFIG_FILES
+
+  - name: Delete Talos configs
+    file:
+      path: "{{ item.path }}"
+      state: absent
+    with_items: "{{ DISCOVERED_TALOS_CONFIG_FILES.files }}"
+
+  - name: Delete Talos config Directory
+    file:
+      path: "/var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}"
+      state: absent
+
+  when: 
+    - ACTION == "destroy_cluster"
+    - not PRESERVE_TALOS_CONFIGS

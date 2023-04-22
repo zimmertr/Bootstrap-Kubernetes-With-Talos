@@ -1,0 +1,18 @@
+- hosts: proxmox
+  tasks:
+    - include_role:
+        name: manage_boilerplate_config
+
+    - include_role:
+        name: manage_machine_config
+      vars:
+          TALOS_MACHINE_NUM: "{{ item }}"
+          TALOS_MACHINE_TYPE: "controlplane"
+      with_sequence: count="{{ K8S_CP_NUM|int }}"
+
+    - include_role:
+        name: manage_machine_config
+      vars:
+          TALOS_MACHINE_NUM: "{{ item }}"
+          TALOS_MACHINE_TYPE: "worker"
+      with_sequence: count="{{ K8S_WORKER_NUM|int }}"

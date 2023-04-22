@@ -1,0 +1,22 @@
+# Prevents recreation of the cluster when adding/removing nodes.
+- name: Determining if the machine config is already generated
+  stat:
+    path: "/var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/patch-{{ TALOS_MACHINE_TYPE }}-{{ TALOS_MACHINE_NUM }}.yml"
+  register: MACHINE_CONFIG_GEN_STATUS
+
+- block:
+  - name: Generating the machine config patch 
+    template:
+      src: "{{ TALOS_MACHINE_TYPE }}_patch.yml"
+      dest: "/var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/patch-{{ TALOS_MACHINE_TYPE }}-{{ TALOS_MACHINE_NUM }}.yml"
+
+  - name: Generating the machine config 
+    command: "talosctl machineconfig patch /var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/{{ TALOS_MACHINE_TYPE }}.yaml --patch @/var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/patch-{{ TALOS_MACHINE_TYPE }}-{{ TALOS_MACHINE_NUM }}.yml -o /var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}-{{ TALOS_MACHINE_TYPE }}-{{ TALOS_MACHINE_NUM }}.yml"
+
+  - name: Deleting the patch file
+    file:
+      path: "/var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/patch-{{ TALOS_MACHINE_TYPE }}-{{ TALOS_MACHINE_NUM }}.yml"
+      state: absent
+    when: not PRESERVE_MACHINE_PATCH
+  when:
+    - not MACHINE_CONFIG_GEN_STATUS.stat.exists

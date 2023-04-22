@@ -1,0 +1,69 @@
+- block:
+  - name: Validate Template already exists
+    command: "qm status {{ TEMPLATE_VMID }}"
+    ignore_errors: true
+    register: TEMPLATE_EXISTS_STATUS
+
+  - block:
+    - name: Creating a Resource Pool
+      command: >
+        pvesh create /pools
+        -poolid "{{ RESOURCE_POOL }}"
+        --Comment "Resources pertaining to Kubernetes"
+      ignore_errors: true
+    
+    - name: Downloading the Talos image
+      get_url: 
+        url: "https://github.com/siderolabs/talos/releases/download/{{ TALOS_VERSION }}/nocloud-amd64.raw.xz"
+        dest: /tmp/nocloud-amd64.raw.xz
+
+    - name: Extracting the Talos image
+      shell: "unxz /tmp/nocloud-amd64.raw.xz --stdout > {{ TEMPLATE_PATH }}"
+
+    - name: Deleting the Talos image archive
+      file:
+        path: /tmp/nocloud-amd64.raw.xz
+        state: absent
+
+    - name: Creating a virtual machine
+      command: "qm create {{ TEMPLATE_VMID }} --name {{ TEMPLATE_NAME }} --description 'Talos Linux Template - {{ TALOS_VERSION }}' --pool {{ RESOURCE_POOL }}"
+
+    - name: Importing the Talos image to a new volume
+      command: "qm disk import {{ TEMPLATE_VMID }} {{ TEMPLATE_PATH }} {{ TEMPLATE_STORAGE_ID }} --format raw"
+
+    - name: Setting the new volume as a SCSI hard disk for the virtual machine
+      command: "qm set {{ TEMPLATE_VMID }} --scsi0 {{ TEMPLATE_STORAGE_ID }}:vm-{{ TEMPLATE_VMID }}-disk-0"
+
+    - name: Converting the virtual machine to a template
+      command: "qm template {{ TEMPLATE_VMID }}"
+
+    - name: Deleting the Talos image
+      file:
+        path: "{{ TEMPLATE_PATH }}"
+        state: absent
+      when: PURGE_TALOS_DISK_IMAGE
+
+    - name: Wait for the template conversion to finish
+      pause:
+        seconds: 10
+    when: TEMPLATE_EXISTS_STATUS.rc == 2 or FORCE_CREATE_TEMPLATE
+  when: ACTION == "create_template"
+
+- block:
+  - name: "Destroying the Talos template"
+    command: "qm destroy {{ TEMPLATE_VMID }}"
+    when: not PRESERVE_TALOS_TEMPLATE
+    register: DESTROY_TEMPLATE_STATUS
+    failed_when: 
+      - DESTROY_TEMPLATE_STATUS.rc != 0 # Success
+      - DESTROY_TEMPLATE_STATUS.rc != 2 # Doesn't exist
+
+  - name: Destroying the Proxmox Resource Pool
+    command: "pvesh delete /pools/{{ RESOURCE_POOL }}"
+    when: not PRESERVE_RESOURCE_POOL
+    register: DESTROY_POOL_STATUS
+    failed_when: 
+      - DESTROY_POOL_STATUS.rc != 0     # Success
+      - DESTROY_POOL_STATUS.rc != 255   # Doesn't exist
+  when: ACTION == "destroy_template"
+

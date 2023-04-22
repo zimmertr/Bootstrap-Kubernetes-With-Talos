@@ -1,0 +1,9 @@
+- hosts: proxmox
+  vars_prompt:
+    - name: password
+      prompt: Enter a password for the Terraform user
+      private: true
+
+  tasks:
+    - include_role:
+        name: init_user

@@ -1,0 +1,4 @@
+- hosts: proxmox
+  tasks:
+    - include_role:
+        name: manage_nodes

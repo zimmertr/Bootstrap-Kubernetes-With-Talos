@@ -1,0 +1,7 @@
+- hosts: proxmox
+  tasks:
+    - include_role:
+        name: manage_packages
+
+    - include_role:
+        name: manage_cluster

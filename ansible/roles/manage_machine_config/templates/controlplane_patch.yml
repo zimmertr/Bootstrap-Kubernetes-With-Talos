@@ -1,0 +1,13 @@
+machine:
+  network: 
+    hostname: "{{ K8S_CP_HOSTNAME_PREFIX }}-{{ TALOS_MACHINE_NUM }}"
+    interfaces:
+      - interface: eth1 
+        vip:
+          ip: "{{ NET_IP_PREFIX }}.{{ K8S_CP_VIP_SUFFIX }}"
+{% if K8S_CNI_DISABLE | bool %}
+cluster:
+  network:
+    cni: 
+      name: none
+{% endif %}

@@ -1,0 +1,15 @@
+machine:
+  network: 
+    hostname: "{{ K8S_WORKER_HOSTNAME_PREFIX }}-{{ TALOS_MACHINE_NUM }}"
+{% if MAYASTOR_ENABLE | bool %}
+  nodeLabels:
+    openebs.io/engine: myastor
+  sysctls:
+    vm.nr_hugepages: "1024"
+{% endif %}
+{% if K8S_CNI_DISABLE | bool %}
+cluster:
+  network:
+    cni: 
+      name: none
+{% endif %}
