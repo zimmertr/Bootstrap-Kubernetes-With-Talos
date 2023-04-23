@@ -5,6 +5,12 @@ machine:
       - interface: eth1 
         vip:
           ip: "{{ NET_IP_PREFIX }}.{{ K8S_CP_VIP_SUFFIX }}"
+{% if MAYASTOR_ENABLE | bool %}
+  nodeLabels:
+    openebs.io/engine: myastor
+  sysctls:
+    vm.nr_hugepages: "2048"
+{% endif %}
 {% if K8S_CNI_DISABLE | bool %}
 cluster:
   network:
