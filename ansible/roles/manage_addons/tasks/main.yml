@@ -62,7 +62,7 @@
 
     - name: Installing Mayastor
       kubernetes.core.helm:
-        atomic: true
+        atomic: false # Helm chart is currently broken, disable waiting for completion
         chart_ref: mayastor/mayastor
         chart_version: "{{ MAYASTOR_VERSION }}"
         kubeconfig: "/var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/kubeconfig"
@@ -72,7 +72,7 @@
         update_repo_cache: true
         values_files:
           "/var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/values-mayastor.yml"
-        # wait: true # Helm chart is currently broken, disable waiting for completion
+        wait: false # Helm chart is currently broken, disable waiting for completion
 
     - name: Creating the DiskPool resources
       kubernetes.core.k8s:
