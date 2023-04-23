@@ -2,13 +2,20 @@ machine:
   network: 
     hostname: "{{ K8S_WORKER_HOSTNAME_PREFIX }}-{{ TALOS_MACHINE_NUM }}"
 {% if MAYASTOR_ENABLE | bool %}
+  kubelet:
+    extraMounts:
+    - destination: /var/openebs/local
+      source: /var/openebs/local
+      type: bind
+      options:
+      - bind    
   nodeLabels:
-    openebs.io/engine: myastor
+    openebs.io/engine: mayastor
   sysctls:
     vm.nr_hugepages: "2048"
 {% endif %}
-{% if K8S_CNI_DISABLE | bool %}
-cluster:
+{% if CILIUM_ENABLE | bool %}
+cluster:  
   network:
     cni: 
       name: none

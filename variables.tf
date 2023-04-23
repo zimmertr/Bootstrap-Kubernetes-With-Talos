@@ -207,6 +207,36 @@ variable "MAYASTOR_STR_ID" {
   default     = null
   description = "The name of the storage in Proxmox that should be used for the Rancher Mayastor disk."
 }
+variable "MAYASTOR_VERSION" {
+  type        = string
+  default     = "2.0.1"
+  description = "The version of Mayastor to install."
+}
+
+
+##################################################
+#              Cilium Configuration              #
+##################################################
+variable "CILIUM_ENABLE" {
+  type        = string
+  default     = false
+  description = "Whether Cilium should be installed instead of Flannel."
+}
+variable "CILIUM_VERSION" {
+  type        = string
+  default     = "v1.13.2"
+  description = "The version of Cilium to install."
+}
+
+
+##################################################
+#                Helm Configuration              #
+##################################################
+variable "HELM_VERSION" {
+  type        = string
+  default     = "v3.11.0"
+  description = "The version of Helm to install when managing Addons."
+}
 
 
 ##################################################
@@ -220,11 +250,6 @@ variable "K8S_CLUSTER_NAME" {
   type        = string
   default     = "k8s-cluster"
   description = "The name of the Kubernetes Cluster."
-}
-variable "K8S_CNI_DISABLE" {
-  type        = string
-  default     = false
-  description = "Whether Flannel installation should be disabled so that a different CNI can be used."
 }
 
 

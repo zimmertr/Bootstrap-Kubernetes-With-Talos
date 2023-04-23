@@ -1,4 +1,9 @@
-- name: Validating that kubectl is already installed
+- name: Validating that Helm is already installed
+  command: which helm
+  ignore_errors: true
+  register: HELM_EXISTS_STATUS
+
+- name: Validating that Kubectl is already installed
   command: which kubectl
   ignore_errors: true
   register: KUBECTL_EXISTS_STATUS
@@ -7,6 +12,33 @@
   command: which talosctl
   ignore_errors: true
   register: TALOS_EXISTS_STATUS
+
+- block:
+    - name: Installing the Helm dependencies
+      apt:
+        pkg: apt-transport-https
+
+    - name: Downloading Helm
+      unarchive:
+        src: "https://get.helm.sh/helm-{{ HELM_VERSION }}-linux-amd64.tar.gz"
+        dest: /tmp
+        remote_src: true
+        mode: 0755
+
+    - name: Installing Helm
+      copy:
+        src: "/tmp/linux-amd64/helm"
+        dest: "/usr/local/bin/helm"
+        mode: 0755
+        remote_src: true
+
+    - name: Installing Kubernetes Python package
+      pip:
+        name: kubernetes
+  when: 
+    - ACTION == "bootstrap_cluster"
+    - CILIUM_ENABLE or MAYASTOR_ENABLE
+    - HELM_EXISTS_STATUS.rc != 0 or FORCE_REINSTALL_HELM
 
 - block:
     - name: Installing the Kubectl dependencies
@@ -51,9 +83,17 @@
     - ACTION == "bootstrap_cluster"
     - TALOS_EXISTS_STATUS.rc != 0 or FORCE_REINSTALL_TALOSCTL
 
+- name: Uninstalling Helm
+  apt:
+    pkg: helm
+    state: absent
+  when: 
+    - ACTION == "destroy_cluster"
+    - not PRESERVE_HELM_BINARY
+
 - name: Uninstalling Kubectl
-  file:
-    path: /usr/bin/kubectl
+  apt:
+    pkg: kubectl
     state: absent
   when: 
     - ACTION == "destroy_cluster"

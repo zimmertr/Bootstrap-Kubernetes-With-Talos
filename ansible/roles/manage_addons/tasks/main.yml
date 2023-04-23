@@ -1,0 +1,95 @@
+- block:
+    - name: Waiting until API Server is responsive
+      command: "kubectl get svc --kubeconfig /var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/kubeconfig"
+      delay: 30
+      retries: 10
+      register: K8S_API_SERVER_STATUS
+      until: K8S_API_SERVER_STATUS is not failed
+
+    - name: Add Cilium Helm repository
+      kubernetes.core.helm_repository:
+        name: cilium
+        repo_url: https://helm.cilium.io/
+
+    - name: Copying Cilium Helm Values to Remote
+      copy:
+        src: values-cilium.yml
+        dest: "/var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/values-cilium.yml"
+
+    - name: Installing Cilium
+      kubernetes.core.helm:
+        atomic: true
+        chart_ref: cilium/cilium
+        chart_version: "{{ CILIUM_VERSION }}"
+        kubeconfig: "/var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/kubeconfig"
+        name: cilium
+        namespace: kube-system
+        timeout: 300s
+        update_repo_cache: true
+        values_files:
+          "/var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/values-cilium.yml"
+        wait: true
+  when: 
+    - ACTION == "bootstrap_cluster"
+    - CILIUM_ENABLE
+
+- block:
+    - name: Waiting until the Kubernetes nodes are Ready
+      command: "kubectl wait --for=condition=Ready nodes --all --timeout=600s --kubeconfig /var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/kubeconfig"
+      delay: 30
+
+    - name: Add Mayastor Helm repository
+      kubernetes.core.helm_repository:
+        name: mayastor
+        repo_url: https://openebs.github.io/mayastor-extensions/
+
+    - name: Creating a namespace for Mayastor
+      kubernetes.core.k8s:
+        kubeconfig: "/var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/kubeconfig"
+        state: present
+        definition: 
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: mayastor-system
+            labels:
+              pod-security.kubernetes.io/enforce: privileged
+
+    - name: Copying Mayastor Helm Values to Remote
+      copy:
+        src: values-mayastor.yml
+        dest: "/var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/values-mayastor.yml"
+
+    - name: Installing Mayastor
+      kubernetes.core.helm:
+        atomic: true
+        chart_ref: mayastor/mayastor
+        chart_version: "{{ MAYASTOR_VERSION }}"
+        kubeconfig: "/var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/kubeconfig"
+        name: mayastor
+        namespace: mayastor-system
+        timeout: 300s
+        update_repo_cache: true
+        values_files:
+          "/var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/values-mayastor.yml"
+        # wait: true # Helm chart is currently broken, disable waiting for completion
+
+    - name: Creating the DiskPool resources
+      kubernetes.core.k8s:
+        kubeconfig: "/var/lib/vz/snippets/talos-{{ K8S_CONFIG_SUFFIX }}/kubeconfig"
+        state: present
+        definition: 
+          apiVersion: openebs.io/v1alpha1
+          kind: DiskPool
+          metadata:
+            name: "k8s-node-{{ item }}"
+            namespace: mayastor-system
+          spec:
+            node: "k8s-node-{{ item }}"
+            disks: ["/dev/sdb"]
+      with_sequence: count="{{ K8S_WORKER_NUM|int }}"
+  when:  
+    - ACTION == "bootstrap_cluster"
+    - MAYASTOR_ENABLE
+
+  

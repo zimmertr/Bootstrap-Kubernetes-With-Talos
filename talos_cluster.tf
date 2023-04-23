@@ -16,7 +16,10 @@ resource "null_resource" "talos_cluster" {
     ansible-playbook \
       -i ansible/inventory.yml \
       -e ACTION="bootstrap_cluster" \
+      -e CILIUM_ENABLE=${var.CILIUM_ENABLE} \
+      -e HELM_VERSION=${var.HELM_VERSION} \
       -e K8S_CP_IP_SUFFIX=${var.K8S_CP_IP_SUFFIX} \
+      -e MAYASTOR_ENABLE=${var.MAYASTOR_ENABLE} \
       -e NET_IP_PREFIX=${var.NET_IP_PREFIX} \
       -e K8S_CONFIG_SUFFIX=${self.triggers.K8S_CONFIG_SUFFIX} \
       ansible/manage_cluster.yml
